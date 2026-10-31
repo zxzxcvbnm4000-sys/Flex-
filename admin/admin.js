@@ -6,6 +6,7 @@
     instapay: "عنوان الدفع أو رقم الهاتف",
     whatsapp: "رقم واتساب (مثال: 01012345678 أو 201012345678)"
   };
+  const BASE = ["vodafone", "instapay", "whatsapp"];
   let S = null, M = [], tab = "methods";
 
   const msg = (t, cls) => `<div class="state ${cls || ""}">${esc(t)}</div>`;
@@ -96,14 +97,18 @@
   }
 
   function viewMethods() {
-    return M.map((m, i) => `<section class="panel" data-key="${esc(m.key)}">
+    const addBox = `<section class="panel"><h2>إضافة وسيلة جديدة</h2>
+      <label class="f">اسم الوسيلة (مثال: Orange Cash)<input class="in" id="newname" maxlength="40"></label>
+      <div class="acts"><button class="btn" data-act="addm">إضافة</button></div>
+      <p class="small" style="margin-top:10px">بعد الإضافة أكمل بياناتها ثم فعّلها لتظهر للعميل.</p></section>`;
+    return addBox + M.map((m, i) => `<section class="panel" data-key="${esc(m.key)}">
       <h2>${esc(m.title)}
         <span class="ord"><button data-act="up" ${i === 0 ? "disabled" : ""} aria-label="تحريك للأعلى">▲</button>
         <button data-act="down" ${i === M.length - 1 ? "disabled" : ""} aria-label="تحريك للأسفل">▼</button></span></h2>
       <label class="f">اسم الزر<input class="in" name="title" value="${esc(m.title)}" maxlength="40"></label>
       <label class="f">الوصف<input class="in" name="description" value="${esc(m.description || "")}" maxlength="80"></label>
       ${m.key !== "whatsapp" ? `<label class="f">رابط الدفع (يبدأ بـ http أو https)<input class="in" dir="ltr" name="link" value="${esc(m.link || "")}" placeholder="https://..."></label>` : ""}
-      <label class="f">${LABELS[m.key]}<input class="in" dir="ltr" name="account_value" value="${esc(m.account_value || "")}"></label>
+      <label class="f">${LABELS[m.key] || "رقم الحساب أو بيانات الدفع (للنسخ)"}<input class="in" dir="ltr" name="account_value" value="${esc(m.account_value || "")}"></label>
       ${m.key === "whatsapp" ? `<label class="f">الرسالة الافتتاحية<textarea class="in" name="whatsapp_message" maxlength="300">${esc(m.whatsapp_message || "")}</textarea></label>` : ""}
       <div class="iconrow"><div class="prev">${F.safeUrl(m.icon_url) ? `<img src="${esc(m.icon_url)}" alt="">` : "افتراضي"}</div>
         <div><label class="btn ghost" style="display:inline-block;cursor:pointer">رفع أيقونة<input type="file" accept="image/*" data-act="icon" hidden></label>
@@ -111,7 +116,7 @@
       <input type="hidden" name="icon_url" value="${esc(m.icon_url || "")}">
       <div class="sw"><span>تفعيل الزر (يظهر للعميل)</span><input type="checkbox" name="enabled" ${m.enabled ? "checked" : ""}></div>
       ${m.key !== "whatsapp" ? `<div class="sw"><span>إظهار زر النسخ</span><input type="checkbox" name="show_copy" ${m.show_copy ? "checked" : ""}></div>` : ""}
-      <div class="acts"><button class="btn" data-act="save">حفظ</button></div></section>`).join("");
+      <div class="acts"><button class="btn" data-act="save">حفظ</button>${BASE.includes(m.key) ? "" : `<button class="btn ghost" data-act="delm">حذف</button>`}</div></section>`).join("");
   }
 
   function viewPage() {
@@ -178,6 +183,26 @@
     if (await save("payment_methods", { key }, v, `تم حفظ ${v.title}`)) await reload();
   }
 
+  async function addMethod() {
+    const title = (document.getElementById("newname").value || "").trim();
+    if (!title) return F.toast("اكتب اسم الوسيلة", "err");
+    const key = "custom_" + Date.now().toString(36);
+    const order = M.reduce((a, x) => Math.max(a, x.sort_order || 0), 0) + 1;
+    const { data, error } = await db.from("payment_methods")
+      .insert({ key, title, enabled: false, show_copy: true, sort_order: order }).select();
+    if (error || !data || !data.length) return F.toast("تعذرت الإضافة: " + (error ? error.message : "شغّل ملف SQL الجديد أولاً"), "err");
+    F.toast("تمت الإضافة. أكمل بياناتها ثم فعّلها");
+    await reload();
+  }
+
+  async function delMethod(key) {
+    if (!confirm("حذف هذه الوسيلة نهائياً؟")) return;
+    const { data, error } = await db.from("payment_methods").delete().eq("key", key).select();
+    if (error || !data || !data.length) return F.toast("تعذر الحذف: " + (error ? error.message : "لا توجد صلاحية"), "err");
+    F.toast("تم الحذف");
+    await reload();
+  }
+
   async function move(key, dir) {
     const i = M.findIndex(x => x.key === key), j = i + dir;
     if (j < 0 || j >= M.length) return;
@@ -206,6 +231,8 @@
     if (t.tagName === "BUTTON") t.disabled = true;
     try {
       if (act === "save") await saveMethod(card);
+      else if (act === "addm") await addMethod();
+      else if (act === "delm") await delMethod(card.dataset.key);
       else if (act === "up" || act === "down") await move(card.dataset.key, act === "up" ? -1 : 1);
       else if (act === "rmicon") { if (await save("payment_methods", { key: card.dataset.key }, { icon_url: null }, "تم حذف الأيقونة")) await reload(); }
       else if (act === "savepage") await savePage(document.getElementById("pg"));

@@ -5,6 +5,7 @@
   const ICONS = {
     vodafone: svg('<path d="M3 7a2 2 0 0 1 2-2h12v4"/><path d="M3 7v10a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-7a1 1 0 0 0-1-1H5a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="14" r="1"/>'),
     instapay: svg('<path d="M4 8h14l-3-3"/><path d="M20 16H6l3 3"/>'),
+    custom: svg('<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M7 15h4"/>'),
     whatsapp: svg('<path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.7-5.4A8.4 8.4 0 1 1 21 11.5z"/><path d="M9 9.5c.5 2 2.5 4 5 5l1.5-1.2-2-1.3-1 .8c-.8-.4-1.7-1.3-2.1-2.1l.8-1-1.3-2z"/>')
   };
   const COPY = svg('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>');
@@ -29,7 +30,7 @@
 
   function iconHtml(m) {
     const u = F.safeUrl(m.icon_url);
-    return u ? `<img src="${esc(u)}" alt="" loading="lazy">` : (ICONS[m.key] || "");
+    return u ? `<img src="${esc(u)}" alt="" loading="lazy">` : (ICONS[m.key] || ICONS.custom);
   }
 
   function render(s, methods) {
